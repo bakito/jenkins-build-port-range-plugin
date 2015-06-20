@@ -1,179 +1,212 @@
 package ch.bakito.jenkins.plugin.bpr;
 
 import hudson.Extension;
-import hudson.ExtensionList;
 import hudson.Launcher;
-import hudson.model.BuildListener;
 import hudson.model.AbstractBuild;
+import hudson.model.BuildListener;
 import hudson.model.Descriptor;
-import hudson.model.Descriptor.FormException;
 import hudson.tasks.BuildWrapper;
-
-import java.io.IOException;
-import java.util.List;
-import java.util.Map;
-
-import jenkins.model.Jenkins;
 import net.sf.json.JSONObject;
-
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
+
+import java.io.IOException;
+import java.util.Map;
 
 @SuppressWarnings("rawtypes")
 public class PoolConfig extends BuildWrapper {
 
-	private final Integer ports;
+    private final Integer ports;
 
-	/**
-	 * 
-	 */
-	@DataBoundConstructor
-	public PoolConfig(Integer ports) {
-		super();
-		this.ports = ports;
-	}
+    private Range range = null;
 
-	@Override
-	public Environment setUp(AbstractBuild build, Launcher launcher,
-			BuildListener listener) throws IOException, InterruptedException {
+    /**
+     *
+     */
+    @DataBoundConstructor
+    public PoolConfig(Integer ports) {
+        super();
+        this.ports = ports;
+    }
 
-		if (ports != null) {
-			DescriptorImpl descriptor = getDescriptor();
-			descriptor.getRange(build.getId(), ports);
-		}
+    public Integer getPorts() {
+        return ports;
+    }
 
-		return new PoolConfigEnvironment();
-	}
+    @Override
+    public Environment setUp(AbstractBuild build, Launcher launcher,
+                             BuildListener listener) throws IOException, InterruptedException {
 
-	public class PoolConfigEnvironment extends Environment {
-		@Override
-		public boolean tearDown(AbstractBuild build, BuildListener listener)
-				throws IOException, InterruptedException {
-			System.err.println("tearDown");
-			return super.tearDown(build, listener);
-		}
-	}
+        if (ports != null) {
+            DescriptorImpl descriptor = getDescriptor();
+            range = descriptor.getRange(build.getId(), ports);
+        }
 
-	@Override
-	public void makeBuildVariables(AbstractBuild build,
-			Map<String, String> variables) {
-		super.makeBuildVariables(build, variables);
-	}
+        return new PoolConfigEnvironment();
+    }
 
-	@Override
-	public DescriptorImpl getDescriptor() {
-		return (DescriptorImpl) super.getDescriptor();
-	}
+    public class PoolConfigEnvironment extends Environment {
+        @Override
+        public boolean tearDown(AbstractBuild build, BuildListener listener)
+                throws IOException, InterruptedException {
+            System.err.println("tearDown");
 
-	@Extension
-	public static class DescriptorImpl extends Descriptor<BuildWrapper> {
+            if (ports != null) {
+                DescriptorImpl descriptor = getDescriptor();
+                descriptor.releaseRange(build.getId());
+            }
+            return true;
+        }
+    }
 
-		private String envVarPrefix = "PORT_POOL";
-		private int startPort = 50000;
-		private int poolSize = 1000;
+    @Override
+    public void makeBuildVariables(AbstractBuild build,
+                                   Map<String, String> variables) {
+        super.makeBuildVariables(build, variables);
 
-		private String[] pool = new String[0];
+        if (range != null) {
+            DescriptorImpl descriptor = getDescriptor();
+            for (int i = range.getFrom(); i <= range.getTo(); i++) {
+                variables.put(descriptor.envVarPrefix + "_" + (i - range.getFrom()), String.valueOf(range.getFrom() + i));
+            }
+        }
 
-		public DescriptorImpl() {
-			init();
-		}
+    }
 
-		public List<Integer> getRange(String jobId, int ports) {
-			synchronized (pool) {
+    @Override
+    public DescriptorImpl getDescriptor() {
+        return (DescriptorImpl) super.getDescriptor();
+    }
 
-				int startIndex = 0;
-				int cnt = 0;
-				for (int i = 0; i < pool.length; i++) {
-					if (pool[i] == null) {
-						if (startIndex == 0) {
-							startIndex = i;
-						}
+    @Extension
+    public static class DescriptorImpl extends Descriptor<BuildWrapper> {
 
-						cnt++;
-						if (cnt == ports) {
-							break;
-						}
-					} else {
-						if (cnt < ports) {
-							startIndex = 0;
-							cnt = 0;
-						}
-					}
+        private String envVarPrefix = "PORT_POOL";
+        private int startPort = 50000;
+        private int poolSize = 1000;
 
-				}
+        private String[] pool = new String[0];
 
-				return null;
-			}
-		}
+        public DescriptorImpl() {
+            init();
+        }
 
-		public void releaseRange(String jobName) {
-			synchronized (pool) {
+        public Range getRange(String jobId, int ports) {
+            synchronized (pool) {
 
-			}
-		}
+                int startIndex = 0;
+                int cnt = 0;
+                for (int i = 0; i < pool.length; i++) {
+                    if (pool[i] == null) {
+                        if (startIndex < 0) {
+                            startIndex = i;
+                        }
 
-		private synchronized void init() {
-			pool = new String[poolSize];
-		}
+                        cnt++;
+                        if (cnt == ports) {
+                            break;
+                        }
+                    } else {
+                        if (cnt < ports) {
+                            startIndex = -1;
+                            cnt = 0;
+                        }
+                    }
 
-		@Override
-		public String getDisplayName() {
-			return "PoolConfig";
-		}
+                }
+                for (int i = startIndex; i < startIndex + ports; i++) {
+                    pool[i] = jobId;
+                }
+                return new Range(startPort + startIndex, startPort + startIndex + ports - 1);
+            }
+        }
 
-		/**
-		 * @return the startPort
-		 */
-		public int getStartPort() {
-			return startPort;
-		}
+        public void releaseRange(String jobName) {
+            synchronized (pool) {
+                for (int i = 0; i < pool.length; i++) {
+                    if (jobName.equals(pool[i])) {
+                        pool[i] = null;
+                    }
+                }
+            }
+        }
 
-		/**
-		 * @param startPort
-		 *            the startPort to set
-		 */
-		public void setStartPort(int startPort) {
-			this.startPort = startPort;
-		}
+        private synchronized void init() {
+            pool = new String[poolSize];
+        }
 
-		/**
-		 * @return the poolSize
-		 */
-		public int getPoolSize() {
-			return poolSize;
-		}
+        @Override
+        public String getDisplayName() {
+            return "PoolConfig";
+        }
 
-		/**
-		 * @param poolSize
-		 *            the poolSize to set
-		 */
-		public void setPoolSize(int poolSize) {
-			this.poolSize = poolSize;
-			init();
-		}
+        /**
+         * @return the startPort
+         */
+        public int getStartPort() {
+            return startPort;
+        }
 
-		/**
-		 * @return the envVarPrefix
-		 */
-		public String getEnvVarPrefix() {
-			return envVarPrefix;
-		}
+        /**
+         * @param startPort the startPort to set
+         */
+        public void setStartPort(int startPort) {
+            this.startPort = startPort;
+        }
 
-		/**
-		 * @param envVarPrefix
-		 *            the envVarPrefix to set
-		 */
-		public void setEnvVarPrefix(String envVarPrefix) {
-			this.envVarPrefix = envVarPrefix;
-		}
+        /**
+         * @return the poolSize
+         */
+        public int getPoolSize() {
+            return poolSize;
+        }
 
-		@Override
-		public boolean configure(StaplerRequest req, JSONObject formData)
-				throws FormException {
-			req.bindJSON(this, formData);
-			save();
-			return super.configure(req, formData);
-		}
-	}
+        /**
+         * @param poolSize the poolSize to set
+         */
+        public void setPoolSize(int poolSize) {
+            this.poolSize = poolSize;
+            init();
+        }
 
+        /**
+         * @return the envVarPrefix
+         */
+        public String getEnvVarPrefix() {
+            return envVarPrefix;
+        }
+
+        /**
+         * @param envVarPrefix the envVarPrefix to set
+         */
+        public void setEnvVarPrefix(String envVarPrefix) {
+            this.envVarPrefix = envVarPrefix;
+        }
+
+        @Override
+        public boolean configure(StaplerRequest req, JSONObject formData)
+                throws FormException {
+            req.bindJSON(this, formData);
+            save();
+            return super.configure(req, formData);
+        }
+    }
+
+    private static final class Range {
+        private final int from;
+        private final int to;
+
+        public Range(int from, int to) {
+            this.from = from;
+            this.to = to;
+        }
+
+        public int getFrom() {
+            return from;
+        }
+
+        public int getTo() {
+            return to;
+        }
+    }
 }
