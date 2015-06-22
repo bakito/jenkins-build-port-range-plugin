@@ -19,8 +19,5 @@
     <f:entry title="The pool size" field="poolSize" description="Set the port pool size">
       <f:textbox />
     </f:entry>
-    <f:entry title="The port pool env variable prefix" field="envVarPrefix" description="he port pool env variable prefix">
-      <f:textbox />
-    </f:entry>
   </f:section>
 </j:jelly>

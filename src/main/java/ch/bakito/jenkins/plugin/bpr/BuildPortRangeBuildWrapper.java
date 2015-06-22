@@ -65,7 +65,7 @@ public class BuildPortRangeBuildWrapper extends BuildWrapper {
     if (range != null) {
       DescriptorImpl descriptor = getDescriptor();
       for (int i = range.getFrom(); i <= range.getTo(); i++) {
-        variables.put(descriptor.envVarPrefix + "_" + (i - range.getFrom()), String.valueOf(range.getFrom() + i));
+        variables.put(descriptor.ENV_VAR_PREFIX + "_" + (i - range.getFrom()), String.valueOf(range.getFrom() + i));
       }
     }
 
@@ -79,7 +79,7 @@ public class BuildPortRangeBuildWrapper extends BuildWrapper {
   @Extension
   public static class DescriptorImpl extends Descriptor<BuildWrapper> {
 
-    private String envVarPrefix = "PORT_POOL";
+    private static final String ENV_VAR_PREFIX = "PORT_POOL";
     private int startPort = 50000;
     private int poolSize = 1000;
 
@@ -165,20 +165,6 @@ public class BuildPortRangeBuildWrapper extends BuildWrapper {
     public void setPoolSize(int poolSize) {
       this.poolSize = poolSize;
       init();
-    }
-
-    /**
-     * @return the envVarPrefix
-     */
-    public String getEnvVarPrefix() {
-      return envVarPrefix;
-    }
-
-    /**
-     * @param envVarPrefix the envVarPrefix to set
-     */
-    public void setEnvVarPrefix(String envVarPrefix) {
-      this.envVarPrefix = envVarPrefix;
     }
 
     @Override
