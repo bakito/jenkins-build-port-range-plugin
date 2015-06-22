@@ -24,7 +24,7 @@
   <packaging>hpi</packaging>
 
   <name>Build Port Range Plugin</name>
-  <description>TODO</description>
+  <description>Build Port Range</description>
   <url>https://wiki.jenkins-ci.org/display/JENKINS/TODO+Plugin</url>
   <licenses>
     <license>
