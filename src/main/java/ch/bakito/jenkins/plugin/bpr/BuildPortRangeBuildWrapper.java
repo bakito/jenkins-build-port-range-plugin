@@ -1,5 +1,6 @@
 package ch.bakito.jenkins.plugin.bpr;
 
+import hudson.AbortException;
 import hudson.Extension;
 import hudson.Launcher;
 import hudson.model.AbstractBuild;
@@ -65,7 +66,7 @@ public class BuildPortRangeBuildWrapper extends BuildWrapper {
     if (range != null) {
       DescriptorImpl descriptor = getDescriptor();
       for (int i = range.getFrom(); i <= range.getTo(); i++) {
-        variables.put(descriptor.ENV_VAR_PREFIX + "_" + (i - range.getFrom()), String.valueOf(range.getFrom() + i));
+        variables.put(descriptor.ENV_VAR_PREFIX + "_" + (i - range.getFrom()), String.valueOf(i));
       }
     }
 
@@ -89,7 +90,10 @@ public class BuildPortRangeBuildWrapper extends BuildWrapper {
       init();
     }
 
-    public Range getRange(String jobId, int ports) {
+    public Range getRange(String jobId, int ports) throws AbortException {
+      if (ports > pool.length) {
+        throw new AbortException("No free ports available in port range. Start port: " + startPort + " pool size: " + poolSize);
+      }
       synchronized (pool) {
 
         int startIndex = 0;
@@ -109,6 +113,9 @@ public class BuildPortRangeBuildWrapper extends BuildWrapper {
               startIndex = -1;
               cnt = 0;
             }
+          }
+          if (i > poolSize) {
+            throw new AbortException("No free ports available in port range. Start port: " + startPort + " pool size: " + poolSize);
           }
 
         }
