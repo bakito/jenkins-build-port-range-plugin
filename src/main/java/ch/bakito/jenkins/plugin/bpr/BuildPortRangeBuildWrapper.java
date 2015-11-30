@@ -1,5 +1,11 @@
 package ch.bakito.jenkins.plugin.bpr;
 
+import java.io.IOException;
+import java.util.Map;
+
+import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.StaplerRequest;
+
 import hudson.AbortException;
 import hudson.Extension;
 import hudson.Launcher;
@@ -8,13 +14,10 @@ import hudson.model.BuildListener;
 import hudson.model.Descriptor;
 import hudson.tasks.BuildWrapper;
 import net.sf.json.JSONObject;
-import org.kohsuke.stapler.DataBoundConstructor;
-import org.kohsuke.stapler.StaplerRequest;
 
-import java.io.IOException;
-import java.util.Map;
-
-@SuppressWarnings("rawtypes")
+/**
+ * BuildPortRangeBuildWrapper
+ */
 public class BuildPortRangeBuildWrapper extends BuildWrapper {
 
   private final Integer portPoolSize;
@@ -22,8 +25,9 @@ public class BuildPortRangeBuildWrapper extends BuildWrapper {
   private Range range = null;
 
   /**
-     *
-     */
+   * BuildPortRangeBuildWrapper
+   * @param portPoolSize
+   */
   @DataBoundConstructor
   public BuildPortRangeBuildWrapper(Integer portPoolSize) {
     super();
@@ -49,8 +53,6 @@ public class BuildPortRangeBuildWrapper extends BuildWrapper {
 
     @Override
     public boolean tearDown(AbstractBuild build, BuildListener listener) throws IOException, InterruptedException {
-      System.err.println("tearDown");
-
       if (portPoolSize != null) {
         DescriptorImpl descriptor = getDescriptor();
         descriptor.releaseRange(build.getId());
@@ -84,9 +86,10 @@ public class BuildPortRangeBuildWrapper extends BuildWrapper {
     private int startPort = 50000;
     private int poolSize = 1000;
 
-    private String[] pool = new String[0];
+    private transient String[] pool = new String[0];
 
     public DescriptorImpl() {
+      load();
       init();
     }
 
@@ -178,7 +181,7 @@ public class BuildPortRangeBuildWrapper extends BuildWrapper {
     public boolean configure(StaplerRequest req, JSONObject formData) throws FormException {
       req.bindJSON(this, formData);
       save();
-      return super.configure(req, formData);
+      return true;
     }
   }
 
