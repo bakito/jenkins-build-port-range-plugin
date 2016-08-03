@@ -2,23 +2,25 @@ package ch.bakito.jenkins.plugin.bpr;
 
 import java.io.IOException;
 import java.util.Map;
-
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
-
 import hudson.AbortException;
+import hudson.EnvVars;
 import hudson.Extension;
+import hudson.FilePath;
 import hudson.Launcher;
 import hudson.model.AbstractBuild;
-import hudson.model.BuildListener;
 import hudson.model.Descriptor;
+import hudson.model.Run;
+import hudson.model.TaskListener;
 import hudson.tasks.BuildWrapper;
+import jenkins.tasks.SimpleBuildWrapper;
 import net.sf.json.JSONObject;
 
 /**
  * BuildPortRangeBuildWrapper
  */
-public class BuildPortRangeBuildWrapper extends BuildWrapper {
+public class BuildPortRangeBuildWrapper extends SimpleBuildWrapper {
 
   private final Integer portPoolSize;
 
@@ -26,7 +28,7 @@ public class BuildPortRangeBuildWrapper extends BuildWrapper {
 
   /**
    * BuildPortRangeBuildWrapper
-   * @param portPoolSize
+   * @param portPoolSize the portPoolSize
    */
   @DataBoundConstructor
   public BuildPortRangeBuildWrapper(Integer portPoolSize) {
@@ -39,26 +41,22 @@ public class BuildPortRangeBuildWrapper extends BuildWrapper {
   }
 
   @Override
-  public Environment setUp(AbstractBuild build, Launcher launcher, BuildListener listener) throws IOException, InterruptedException {
+  public void setUp(Context context, Run<?, ?> run, FilePath filePath, Launcher launcher, TaskListener taskListener, EnvVars envVars) throws IOException, InterruptedException {
 
     if (portPoolSize != null) {
       DescriptorImpl descriptor = getDescriptor();
-      range = descriptor.getRange(build.getId(), portPoolSize);
+      range = descriptor.getRange(run.getId(), portPoolSize);
     }
 
-    return new PoolConfigEnvironment();
-  }
-
-  public class PoolConfigEnvironment extends Environment {
-
-    @Override
-    public boolean tearDown(AbstractBuild build, BuildListener listener) throws IOException, InterruptedException {
-      if (portPoolSize != null) {
-        DescriptorImpl descriptor = getDescriptor();
-        descriptor.releaseRange(build.getId());
+    context.setDisposer(new Disposer() {
+      @Override
+      public void tearDown(Run<?, ?> run, FilePath filePath, Launcher launcher, TaskListener taskListener) throws IOException, InterruptedException {
+        if (portPoolSize != null) {
+          DescriptorImpl descriptor = getDescriptor();
+          descriptor.releaseRange(run.getId());
+        }
       }
-      return true;
-    }
+    });
   }
 
   @Override
