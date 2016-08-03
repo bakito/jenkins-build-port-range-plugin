@@ -1,6 +1,7 @@
 package ch.bakito.jenkins.plugin.bpr;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.Map;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
@@ -20,7 +21,9 @@ import net.sf.json.JSONObject;
 /**
  * BuildPortRangeBuildWrapper
  */
-public class BuildPortRangeBuildWrapper extends SimpleBuildWrapper {
+public class BuildPortRangeBuildWrapper extends SimpleBuildWrapper implements Serializable {
+
+  private static final long serialVersionUID = 42L;
 
   private final Integer portPoolSize;
 
@@ -49,6 +52,7 @@ public class BuildPortRangeBuildWrapper extends SimpleBuildWrapper {
     }
 
     context.setDisposer(new Disposer() {
+
       @Override
       public void tearDown(Run<?, ?> run, FilePath filePath, Launcher launcher, TaskListener taskListener) throws IOException, InterruptedException {
         if (portPoolSize != null) {
@@ -183,8 +187,8 @@ public class BuildPortRangeBuildWrapper extends SimpleBuildWrapper {
     }
   }
 
-  private static final class Range {
-
+  private static final class Range implements Serializable {
+    private static final long serialVersionUID = 42L;
     private final int from;
     private final int to;
 

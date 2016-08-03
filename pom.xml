@@ -12,7 +12,7 @@
   </parent>
   <groupId>com.six.libraries.jenkins.plugin</groupId>
   <artifactId>jenkins-build-port-range-plugin</artifactId>
-  <version>0.3</version>
+  <version>0.3  </version>
   <packaging>hpi</packaging>
 
   <name>Build Port Range Plugin</name>
