@@ -2,15 +2,18 @@ package ch.bakito.jenkins.plugin.bpr;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.HashMap;
 import java.util.Map;
+
+import org.jenkinsci.Symbol;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
+
 import hudson.AbortException;
 import hudson.EnvVars;
 import hudson.Extension;
 import hudson.FilePath;
 import hudson.Launcher;
-import hudson.model.AbstractBuild;
 import hudson.model.Descriptor;
 import hudson.model.Run;
 import hudson.model.TaskListener;
@@ -20,6 +23,9 @@ import net.sf.json.JSONObject;
 
 /**
  * BuildPortRangeBuildWrapper
+ *
+ * https://github.com/SonarSource/sonar-scanner-jenkins/blob/74a90cc4d3d736b4dd4e730ccd3a6afe89cc04e6/src/main/java/hudson/plugins/sonar/SonarBuildWrapper.java#L88
+ *
  */
 public class BuildPortRangeBuildWrapper extends SimpleBuildWrapper implements Serializable {
 
@@ -49,6 +55,8 @@ public class BuildPortRangeBuildWrapper extends SimpleBuildWrapper implements Se
     if (portPoolSize != null) {
       DescriptorImpl descriptor = getDescriptor();
       range = descriptor.getRange(run.getId(), portPoolSize);
+
+      context.getEnv().putAll(createVars(range));
     }
 
     context.setDisposer(new Disposer() {
@@ -63,16 +71,14 @@ public class BuildPortRangeBuildWrapper extends SimpleBuildWrapper implements Se
     });
   }
 
-  @Override
-  public void makeBuildVariables(AbstractBuild build, Map<String, String> variables) {
-    super.makeBuildVariables(build, variables);
-
+  private Map<String, String> createVars(Range range) {
+    Map<String, String> variables = new HashMap<>();
     if (range != null) {
-      DescriptorImpl descriptor = getDescriptor();
       for (int i = range.getFrom(); i <= range.getTo(); i++) {
-        variables.put(descriptor.ENV_VAR_PREFIX + "_" + (i - range.getFrom()), String.valueOf(i));
+        variables.put(DescriptorImpl.ENV_VAR_PREFIX + "_" + (i - range.getFrom()), String.valueOf(i));
       }
     }
+    return variables;
 
   }
 
@@ -81,6 +87,7 @@ public class BuildPortRangeBuildWrapper extends SimpleBuildWrapper implements Se
     return (DescriptorImpl) super.getDescriptor();
   }
 
+  @Symbol("withBuildPortPool")
   @Extension
   public static class DescriptorImpl extends Descriptor<BuildWrapper> {
 
@@ -95,7 +102,7 @@ public class BuildPortRangeBuildWrapper extends SimpleBuildWrapper implements Se
       init();
     }
 
-    public Range getRange(String jobId, int ports) throws AbortException {
+    Range getRange(String jobId, int ports) throws AbortException {
       if (ports > pool.length) {
         throw new AbortException("No free ports available in port range. Start port: " + startPort + " pool size: " + poolSize);
       }
@@ -131,7 +138,7 @@ public class BuildPortRangeBuildWrapper extends SimpleBuildWrapper implements Se
       }
     }
 
-    public void releaseRange(String jobName) {
+    void releaseRange(String jobName) {
       synchronized (pool) {
         for (int i = 0; i < pool.length; i++) {
           if (jobName.equals(pool[i])) {
@@ -188,6 +195,7 @@ public class BuildPortRangeBuildWrapper extends SimpleBuildWrapper implements Se
   }
 
   private static final class Range implements Serializable {
+
     private static final long serialVersionUID = 42L;
     private final int from;
     private final int to;
@@ -197,11 +205,11 @@ public class BuildPortRangeBuildWrapper extends SimpleBuildWrapper implements Se
       this.to = to;
     }
 
-    public int getFrom() {
+    int getFrom() {
       return from;
     }
 
-    public int getTo() {
+    int getTo() {
       return to;
     }
   }
